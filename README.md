@@ -5,6 +5,6 @@ to render a scene as below, but with pyramids instead of spheres:
   
 ![scene](https://raytracing.github.io/images/img-1.13-metal-shiny.png)
 
-To submit, replace the following PNG with your image:  
+To submit, replace the following PNG with your image by replacing `./img.png` in this repo:  
   
 ![replace me](./img.png)
