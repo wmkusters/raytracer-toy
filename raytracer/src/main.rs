@@ -1,60 +1,99 @@
-use std::ops;
+use std::ops::{Add, Div, Mul, Sub};
 
-struct Vec {
-    x: f64,
-    y: f64,
-    z: f64,
+#[derive(Copy, Clone)]
+struct Vec<T> {
+    x: T,
+    y: T,
+    z: T,
 }
 
-// The `std::ops::Add` trait is used to specify the functionality of `+`.
-// Here, we make `Add<Bar>` - the trait for addition with a RHS of type `Bar`.
-// The following block implements the operation: Foo + Bar = FooBar
-impl ops::Add<Vec> for Vec {
-    type Output = Vec;
+// don't need a second method for commutative addition,
+// commutation already works because we're adding floats
+impl<T> Add<Vec<T>> for Vec<T>
+where
+    T: Add<Output = T> + Copy,
+{
+    type Output = Vec<T>;
 
-    fn add(self, _rhs: Vec) -> Vec {
-        println!("> Foo.add(Bar) was called");
-    }
-}
-
-// // By reversing the types, we end up implementing non-commutative addition.
-// // Here, we make `Add<Foo>` - the trait for addition with a RHS of type `Foo`.
-// // This block implements the operation: Bar + Foo = BarFoo
-// impl ops::Add<Foo> for Bar {
-//     type Output = BarFoo;
-//
-//     fn add(self, _rhs: Foo) -> BarFoo {
-//         println!("> Bar.add(Foo) was called");
-//
-//         BarFoo
-//     }
-// }
-
-fn main() {
-    const IMAGE_WIDTH: u32 = 256;
-    const IMAGE_HEIGHT: u32 = 256;
-    println!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT} \n255\n");
-
-    let mut r = 0.0;
-    let mut g = 0.0;
-    let mut b = 0.0;
-
-    let mut ir = 0;
-    let mut ig = 0;
-    let mut ib = 0;
-    for j in 0..IMAGE_HEIGHT {
-        eprintln!("Scanlines remaining: {0}", IMAGE_HEIGHT - j);
-        for i in 0..IMAGE_WIDTH {
-            r = i as f64 / (IMAGE_WIDTH - 1) as f64;
-            g = j as f64 / (IMAGE_HEIGHT - 1) as f64;
-            b = 0.0;
-
-            ir = (255.999 * r) as i32;
-            ig = (255.999 * g) as i32;
-            ib = (255.999 * b) as i32;
-
-            println!("{ir} {ig} {ib}");
+    fn add(self, rhs: Vec<T>) -> Vec<T> {
+        Vec {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
         }
     }
-    eprintln!("\rDone.                 \n");
+}
+
+impl<T> Sub<Vec<T>> for Vec<T>
+where
+    T: Sub<Output = T> + Copy,
+{
+    type Output = Vec<T>;
+
+    fn sub(self, rhs: Vec<T>) -> Self::Output {
+        Vec {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+//impl ops::Sub<Vec> for Vec {
+//    type Output = Vec;
+//
+//    fn sub(self, _rhs: Vec) -> Vec {
+//        Vec {
+//            x: self.x - _rhs.x,
+//            y: self.y - _rhs.y,
+//            z: self.z - _rhs.z,
+//        }
+//    }
+//}
+
+impl<T> Mul<T> for Vec<T>
+where
+    T: Mul<Output = T> + Copy,
+{
+    type Output = Vec<T>;
+
+    fn mul(self, _rhs: T) -> Self::Output {
+        Vec {
+            x: self.x * _rhs,
+            y: self.y * _rhs,
+            z: self.z * _rhs,
+        }
+    }
+}
+
+impl<T> Div<T> for Vec<T>
+where
+    T: Div<Output = T> + Copy,
+{
+    type Output = Vec<T>;
+
+    fn div(self, rhs: T) -> Vec<T> {
+        Vec {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
+    }
+}
+
+fn main() {
+    let v1 = Vec {
+        x: 0.1,
+        y: 0.0,
+        z: 0.0,
+    };
+    let v2 = Vec {
+        x: 0.2,
+        y: 0.0,
+        z: 0.0,
+    };
+    println!("v1 + v2: {0}", (v1 + v2).x);
+    println!("v1 - v2: {0}", (v1 - v2).x);
+    println!("v1 / v2: {0}", (v1 / 2.0).x);
+    println!("v1 / v2: {0}", (v1 * 2.0).x);
 }
