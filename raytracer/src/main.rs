@@ -1,4 +1,5 @@
-use std::ops::{Add, Div, Index, Mul, Sub};
+use std::fmt::{Display, Formatter, Result};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 trait SqrtTrait {
     fn sqrt(self) -> Self;
@@ -15,6 +16,15 @@ struct Vec<T> {
     x: T,
     y: T,
     z: T,
+}
+
+impl<T> Display for Vec<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
 }
 
 // don't need a second method for commutative addition,
@@ -49,17 +59,32 @@ where
     }
 }
 
+impl<T> Neg for Vec<T>
+where
+    T: Neg<Output = T> + Copy,
+{
+    type Output = Vec<T>;
+
+    fn neg(self) -> Self::Output {
+        Vec {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
+    }
+}
+
 impl<T> Mul<T> for Vec<T>
 where
     T: Mul<Output = T> + Copy,
 {
     type Output = Vec<T>;
 
-    fn mul(self, _rhs: T) -> Self::Output {
+    fn mul(self, rhs: T) -> Self::Output {
         Vec {
-            x: self.x * _rhs,
-            y: self.y * _rhs,
-            z: self.z * _rhs,
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
         }
     }
 }
@@ -79,6 +104,21 @@ where
     }
 }
 
+impl<T> Mul<Vec<T>> for Vec<T>
+where
+    T: Mul<Output = T> + Copy,
+{
+    type Output = Vec<T>;
+
+    fn mul(self, rhs: Vec<T>) -> Self::Output {
+        Vec {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+        }
+    }
+}
+
 impl<T> Vec<T> {
     fn length(self) -> T
     where
@@ -86,14 +126,37 @@ impl<T> Vec<T> {
     {
         self.length_squared().sqrt()
     }
-}
 
-impl<T> Vec<T> {
     fn length_squared(self) -> T
     where
         T: Add<Output = T> + Mul<Output = T> + Copy,
     {
         self.x * self.x + self.y * self.y + self.z * self.z
+    }
+
+    fn unit_vector(self) -> Self
+    where
+        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait + Div<Output = T>,
+    {
+        self / self.length()
+    }
+
+    fn dot(self, rhs: Vec<T>) -> T
+    where
+        T: Add<Output = T> + Copy,
+    {
+        self.x + rhs.x + self.y + rhs.y + self.z + rhs.z
+    }
+
+    fn cross(self, rhs: Vec<T>) -> Vec<T>
+    where
+        T: Mul<Output = T> + Sub<Output = T> + Copy,
+    {
+        Vec {
+            x: self.y * rhs.z - self.z * rhs.y,
+            y: self.z * rhs.x - self.x * rhs.z,
+            z: self.x * rhs.y - self.y * rhs.x,
+        }
     }
 }
 
@@ -108,10 +171,16 @@ fn main() {
         y: 0.0,
         z: 0.0,
     };
-    println!("v1 + v2: {0}", (v1 + v2).x);
-    println!("v1 - v2: {0}", (v1 - v2).x);
-    println!("v1 / v2: {0}", (v1 / 2.0).x);
-    println!("v1 / v2: {0}", (v1 * 2.0).x);
+    println!("v1: {0}", (v1));
+    println!("-v1: {0}", (-v1));
+    println!("v1 / 2.0: {0}", (v1 / 2.0));
+    println!("v1 * 2.0: {0}", (v1 * 2.0));
+    println!("v1 + v2: {0}", (v1 + v2));
+    println!("v1 - v2: {0}", (v1 - v2));
+    println!("v1 * v2: {0}", (v1 * v2));
     println!("squared length of v1: {0}", (v1.length_squared()));
     println!("length of v1: {0}", (v1.length()));
+    println!("unit of v1: {0}", (v1.unit_vector()));
+    println!("v1.dot(v2): {0}", (v1.dot(v2)));
+    println!("v1.cross(v2): {0}", (v1.cross(v2)));
 }
