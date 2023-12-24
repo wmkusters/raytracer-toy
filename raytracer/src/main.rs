@@ -163,6 +163,23 @@ where
     }
 }
 
+type Point<T> = Vec<T>;
+
+struct Ray<T> {
+    origin: Point<T>,
+    direction: Vec<T>,
+}
+
+impl<T> Ray<T> {
+    fn at(self, t: T) -> Point<T>
+    where
+        T: Mul<Output = T> + Copy + From<f64>,
+        Vec<T>: Add<Output = Vec<T>>,
+    {
+        self.origin + self.direction * t
+    }
+}
+
 fn write_color<T>(color: Vec<T>)
 where
     T: Mul<Output = T> + Copy + From<f64>,
@@ -175,7 +192,7 @@ where
     println!("{0} {1} {2}", x as i32, y as i32, z as i32,);
 }
 
-fn main() {
+fn vec_test() {
     let v1 = Vec {
         x: 0.58,
         y: 0.58,
@@ -200,4 +217,39 @@ fn main() {
     println!("v1.cross(v2): {0}", (v1.cross(v2)));
     write_color(v1);
     write_color(v2);
+    let r1 = Ray {
+        origin: Point {
+            x: 1.1,
+            y: 1.2,
+            z: 1.3,
+        },
+        direction: Vec {
+            x: 1.1,
+            y: 1.2,
+            z: 1.3,
+        },
+    };
+    println!("ray: {0}", r1.at(4.0));
+}
+
+fn main() {
+    /*
+    const IMAGE_WIDTH: u32 = 256;
+    const IMAGE_HEIGHT: u32 = 256;
+    println!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT} \n255\n");
+
+    for j in 0..IMAGE_HEIGHT {
+        eprintln!("Scanlines remaining: {0}", IMAGE_HEIGHT - j);
+        for i in 0..IMAGE_WIDTH {
+            let r = i as f64 / (IMAGE_WIDTH - 1) as f64;
+            let g = j as f64 / (IMAGE_HEIGHT - 1) as f64;
+            let b = 0.0;
+
+            let color = Vec { x: r, y: g, z: b };
+            write_color(color)
+        }
+    }
+    eprintln!("\rDone.                 \n");
+    */
+    vec_test()
 }
