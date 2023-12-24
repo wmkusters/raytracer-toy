@@ -20,7 +20,7 @@ struct Vec<T> {
 
 impl<T> Display for Vec<T>
 where
-    T: Display,
+    T: Display + From<f64>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "({}, {}, {})", self.x, self.y, self.z)
@@ -31,7 +31,7 @@ where
 // commutation already works because we're adding floats
 impl<T> Add<Vec<T>> for Vec<T>
 where
-    T: Add<Output = T> + Copy,
+    T: Add<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -46,7 +46,7 @@ where
 
 impl<T> Sub<Vec<T>> for Vec<T>
 where
-    T: Sub<Output = T> + Copy,
+    T: Sub<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -61,7 +61,7 @@ where
 
 impl<T> Neg for Vec<T>
 where
-    T: Neg<Output = T> + Copy,
+    T: Neg<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -76,7 +76,7 @@ where
 
 impl<T> Mul<T> for Vec<T>
 where
-    T: Mul<Output = T> + Copy,
+    T: Mul<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -91,7 +91,7 @@ where
 
 impl<T> Div<T> for Vec<T>
 where
-    T: Div<Output = T> + Copy,
+    T: Div<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -106,7 +106,7 @@ where
 
 impl<T> Mul<Vec<T>> for Vec<T>
 where
-    T: Mul<Output = T> + Copy,
+    T: Mul<Output = T> + Copy + From<f64>,
 {
     type Output = Vec<T>;
 
@@ -119,38 +119,41 @@ where
     }
 }
 
-impl<T> Vec<T> {
+impl<T> Vec<T>
+where
+    T: From<f64>,
+{
     fn length(self) -> T
     where
-        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait,
+        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait + From<f64>,
     {
         self.length_squared().sqrt()
     }
 
     fn length_squared(self) -> T
     where
-        T: Add<Output = T> + Mul<Output = T> + Copy,
+        T: Add<Output = T> + Mul<Output = T> + Copy + From<f64>,
     {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
     fn unit_vector(self) -> Self
     where
-        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait + Div<Output = T>,
+        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait + Div<Output = T> + From<f64>,
     {
         self / self.length()
     }
 
     fn dot(self, rhs: Vec<T>) -> T
     where
-        T: Add<Output = T> + Copy,
+        T: Add<Output = T> + Copy + From<f64>,
     {
         self.x + rhs.x + self.y + rhs.y + self.z + rhs.z
     }
 
     fn cross(self, rhs: Vec<T>) -> Vec<T>
     where
-        T: Mul<Output = T> + Sub<Output = T> + Copy,
+        T: Mul<Output = T> + Sub<Output = T> + Copy + From<f64>,
     {
         Vec {
             x: self.y * rhs.z - self.z * rhs.y,
@@ -158,6 +161,18 @@ impl<T> Vec<T> {
             z: self.x * rhs.y - self.y * rhs.x,
         }
     }
+}
+
+fn write_color<T>(color: Vec<T>)
+where
+    T: Mul<Output = T> + Copy + From<f64>,
+    f64: From<T>,
+{
+    let output = color * T::from(255.99);
+    let x = f64::from(output.x);
+    let y = f64::from(output.y);
+    let z = f64::from(output.z);
+    println!("{0} {1} {2}", x as i32, y as i32, z as i32,);
 }
 
 fn main() {
@@ -183,4 +198,6 @@ fn main() {
     println!("unit of v1: {0}", (v1.unit_vector()));
     println!("v1.dot(v2): {0}", (v1.dot(v2)));
     println!("v1.cross(v2): {0}", (v1.cross(v2)));
+    write_color(v1);
+    write_color(v2);
 }
