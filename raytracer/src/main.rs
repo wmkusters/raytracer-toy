@@ -1,4 +1,14 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Index, Mul, Sub};
+
+trait SqrtTrait {
+    fn sqrt(self) -> Self;
+}
+
+impl SqrtTrait for f64 {
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+}
 
 #[derive(Copy, Clone)]
 struct Vec<T> {
@@ -39,18 +49,6 @@ where
     }
 }
 
-//impl ops::Sub<Vec> for Vec {
-//    type Output = Vec;
-//
-//    fn sub(self, _rhs: Vec) -> Vec {
-//        Vec {
-//            x: self.x - _rhs.x,
-//            y: self.y - _rhs.y,
-//            z: self.z - _rhs.z,
-//        }
-//    }
-//}
-
 impl<T> Mul<T> for Vec<T>
 where
     T: Mul<Output = T> + Copy,
@@ -81,11 +79,29 @@ where
     }
 }
 
+impl<T> Vec<T> {
+    fn length(self) -> T
+    where
+        T: Add<Output = T> + Mul<Output = T> + Copy + SqrtTrait,
+    {
+        self.length_squared().sqrt()
+    }
+}
+
+impl<T> Vec<T> {
+    fn length_squared(self) -> T
+    where
+        T: Add<Output = T> + Mul<Output = T> + Copy,
+    {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
+}
+
 fn main() {
     let v1 = Vec {
-        x: 0.1,
-        y: 0.0,
-        z: 0.0,
+        x: 0.58,
+        y: 0.58,
+        z: 0.58,
     };
     let v2 = Vec {
         x: 0.2,
@@ -96,4 +112,6 @@ fn main() {
     println!("v1 - v2: {0}", (v1 - v2).x);
     println!("v1 / v2: {0}", (v1 / 2.0).x);
     println!("v1 / v2: {0}", (v1 * 2.0).x);
+    println!("squared length of v1: {0}", (v1.length_squared()));
+    println!("length of v1: {0}", (v1.length()));
 }
