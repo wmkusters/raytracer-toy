@@ -1,6 +1,50 @@
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+struct HitRecord {
+    p: Point,
+    normal: Vec,
+    t: f64,
+}
+
+trait Hittable {
+    fn hit(self, r: &Ray, ray_tmin: f64, ray_tmax: f64, record: &mut HitRecord) -> bool;
+}
+
+struct Sphere {
+    center: Point,
+    radius: f64,
+}
+
+impl Hittable for Sphere {
+    fn hit(self, r: &Ray, ray_tmin: f64, ray_tmax: f64, record: &mut HitRecord) -> bool {
+        let oc = r.origin - self.center;
+        let a = r.direction.length_squared();
+        let half_b = oc.dot(r.direction);
+        let c = oc.length_squared() - self.radius * self.radius;
+
+        let discriminant = half_b * half_b - a * c;
+        if discriminant < 0.0 {
+            return false;
+        }
+        let sqrtd = discriminant.sqrt();
+
+        let mut root = (-half_b - sqrtd) / a;
+        if root <= ray_tmin || ray_tmax <= root {
+            root = (-half_b + sqrtd) / a;
+            if root <= ray_tmin || ray_tmax <= root {
+                return false;
+            }
+        }
+
+        record.t = root;
+        record.p = r.at(record.t);
+        record.normal = (record.p - self.center) / self.radius;
+
+        return true;
+    }
+}
+
 #[derive(Copy, Clone)]
 struct Vec {
     x: f64,
@@ -131,27 +175,33 @@ fn hit_sphere(center: Point, radius: f64, r: &Ray) -> f64 {
 }
 
 fn ray_color(r: Ray) -> Vec {
-    let t = hit_sphere(
-        Vec {
+    let s = Sphere {
+        center: Vec {
             x: 0.0,
             y: 0.0,
             z: -1.0,
         },
-        0.5,
-        &r,
-    );
-    if t > 0.0 {
-        let N = (r.at(t)
-            - Vec {
-                x: 0.0,
-                y: 0.0,
-                z: -1.0,
-            })
-        .unit_vector();
+        radius: 0.5,
+    };
+    let mut rec = HitRecord {
+        p: Point {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        normal: Vec {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        t: 0.0,
+    };
+    s.hit(&r, -1.0, 2.0, &mut rec);
+    if rec.t > 0.0 {
         let result = Vec {
-            x: N.x + 1.0,
-            y: N.y + 1.0,
-            z: N.z + 1.0,
+            x: rec.normal.x + 1.0,
+            y: rec.normal.y + 1.0,
+            z: rec.normal.z + 1.0,
         } * 0.5;
         return result;
     }
