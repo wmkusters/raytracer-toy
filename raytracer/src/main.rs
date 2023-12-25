@@ -143,9 +143,9 @@ fn ray_color(r: Ray) -> Vec {
     if t > 0.0 {
         let N = (r.at(t)
             - Vec {
-                x: 1.0,
+                x: 0.0,
                 y: 0.0,
-                z: 0.0,
+                z: -1.0,
             })
         .unit_vector();
         let result = Vec {
@@ -153,7 +153,6 @@ fn ray_color(r: Ray) -> Vec {
             y: N.y + 1.0,
             z: N.z + 1.0,
         } * 0.5;
-        eprintln!("result: {0}", result);
         return result;
     }
     let unit_direction = r.direction.unit_vector();
@@ -192,7 +191,7 @@ fn main() {
     // camera
     const FOCAL_LENGTH: f64 = 1.0;
     const VIEWPORT_HEIGHT: f64 = 2.0;
-    const VIEWPORT_WIDTH: f64 = VIEWPORT_HEIGHT * ((IMAGE_WIDTH / IMAGE_HEIGHT) as f64);
+    const VIEWPORT_WIDTH: f64 = VIEWPORT_HEIGHT * (IMAGE_WIDTH as f64 / IMAGE_HEIGHT as f64);
     let camera_center = Point {
         x: 0.0,
         y: 0.0,
