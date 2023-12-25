@@ -146,9 +146,9 @@ where
 
     fn dot(self, rhs: Vec<T>) -> T
     where
-        T: Add<Output = T> + Copy + From<f64>,
+        T: Mul<Output = T> + Add<Output = T> + Copy + From<f64>,
     {
-        self.x + rhs.x + self.y + rhs.y + self.z + rhs.z
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 
     fn cross(self, rhs: Vec<T>) -> Vec<T>
@@ -165,9 +165,35 @@ where
 
 type Point<T> = Vec<T>;
 
+#[derive(Copy, Clone)]
 struct Ray<T> {
     origin: Point<T>,
     direction: Vec<T>,
+}
+
+fn hit_sphere<T>(center: Point<T>, radius: f64, r: &Ray<T>) -> f64
+where
+    T: Sub<Output = T>
+        + Add<Output = T>
+        + Mul<Output = T>
+        + Copy
+        + Display
+        + SqrtTrait
+        + Div<Output = T>
+        + From<f64>,
+    f64: From<T>,
+{
+    let oc = r.origin - center;
+    let a = f64::from(r.direction.dot(r.direction));
+    let b = f64::from(oc.dot(r.direction) * 2.0.into());
+    let c = f64::from(oc.dot(oc)) - radius * radius;
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        return -1.0;
+    } else {
+        return (-b - discriminant.sqrt()) / (2.0 * a);
+    }
 }
 
 fn ray_color<T>(r: Ray<T>) -> Vec<f64>
@@ -176,11 +202,37 @@ where
         + Sub<Output = T>
         + Mul<Output = T>
         + Copy
+        + Display
         + SqrtTrait
         + Div<Output = T>
         + From<f64>,
     f64: From<T>,
 {
+    let t = hit_sphere(
+        Vec {
+            x: 0.0.into(),
+            y: 0.0.into(),
+            z: (-1.0).into(),
+        },
+        0.5,
+        &r,
+    );
+    if t > 0.0 {
+        let N = (r.at(t.into())
+            - Vec {
+                x: 1.0.into(),
+                y: 0.0.into(),
+                z: 0.0.into(),
+            })
+        .unit_vector();
+        let result = Vec {
+            x: f64::from(N.x) + 1.0,
+            y: f64::from(N.y) + 1.0,
+            z: f64::from(N.z) + 1.0,
+        } * 0.5;
+        eprintln!("result: {0}", result);
+        return result;
+    }
     let unit_direction = r.direction.unit_vector();
     let a = f64::from((unit_direction.y + 1.0.into()) * 0.5.into());
     Vec {
@@ -214,6 +266,7 @@ where
     let x = f64::from(output.x);
     let y = f64::from(output.y);
     let z = f64::from(output.z);
+    eprintln!("{0} {1} {2}", x as i32, y as i32, z as i32,);
     println!("{0} {1} {2}", x as i32, y as i32, z as i32,);
 }
 
