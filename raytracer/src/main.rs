@@ -170,6 +170,31 @@ struct Ray<T> {
     direction: Vec<T>,
 }
 
+fn ray_color<T>(r: Ray<T>) -> Vec<f64>
+where
+    T: Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Copy
+        + SqrtTrait
+        + Div<Output = T>
+        + From<f64>,
+    f64: From<T>,
+{
+    let unit_direction = r.direction.unit_vector();
+    let a = f64::from((unit_direction.y + 1.0.into()) * 0.5.into());
+    Vec {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
+    } * (1.0 - a)
+        + Vec {
+            x: 0.5.into(),
+            y: 0.7.into(),
+            z: 1.0.into(),
+        } * (a)
+}
+
 impl<T> Ray<T> {
     fn at(self, t: T) -> Point<T>
     where
@@ -233,23 +258,64 @@ fn vec_test() {
 }
 
 fn main() {
-    /*
-    const IMAGE_WIDTH: u32 = 256;
-    const IMAGE_HEIGHT: u32 = 256;
-    println!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT} \n255\n");
+    const aspect_ratio: f64 = 16.0 / 9.0;
+    const IMAGE_WIDTH: u32 = 400;
+    const image_height: u32 = (IMAGE_WIDTH as f64 / aspect_ratio) as u32;
 
-    for j in 0..IMAGE_HEIGHT {
-        eprintln!("Scanlines remaining: {0}", IMAGE_HEIGHT - j);
+    // camera
+    const focal_length: f64 = 1.0;
+    const viewport_height: f64 = 2.0;
+    const viewport_width: f64 = viewport_height * ((IMAGE_WIDTH / image_height) as f64);
+    let camera_center = Point {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+
+    // horiz/vert viewport edges
+    let viewport_u = Vec {
+        x: viewport_width,
+        y: 0.0,
+        z: 0.0,
+    };
+    let viewport_v = Vec {
+        x: 0.0,
+        y: -viewport_height,
+        z: 0.0,
+    };
+
+    // horiz/vert delta
+    let pixel_delta_u = viewport_u / IMAGE_WIDTH as f64;
+    let pixel_delta_v = viewport_v / image_height as f64;
+
+    // upper left pixel
+    let viewport_upper_left = camera_center
+        - Vec {
+            x: 0.0,
+            y: 0.0,
+            z: focal_length,
+        }
+        - viewport_u / 2.0
+        - viewport_v / 2.0;
+    let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+
+    println!("P3\n{IMAGE_WIDTH} {image_height} \n255\n");
+
+    for j in 0..image_height {
+        eprintln!("Scanlines remaining: {0}", image_height - j);
         for i in 0..IMAGE_WIDTH {
-            let r = i as f64 / (IMAGE_WIDTH - 1) as f64;
-            let g = j as f64 / (IMAGE_HEIGHT - 1) as f64;
-            let b = 0.0;
+            let pixel_center =
+                pixel00_loc + (pixel_delta_u * i as f64) + (pixel_delta_v * j as f64);
+            let ray_direction = pixel_center - camera_center;
+            let r = Ray {
+                origin: camera_center,
+                direction: ray_direction,
+            };
 
-            let color = Vec { x: r, y: g, z: b };
-            write_color(color)
+            let pixel_color = ray_color(r);
+            write_color(pixel_color)
         }
     }
     eprintln!("\rDone.                 \n");
-    */
-    vec_test()
+    // vec_test()
 }
