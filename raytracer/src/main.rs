@@ -1,6 +1,120 @@
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+struct Camera {
+    aspect_ratio: f64,
+    image_width: u32,
+    image_height: u32,
+    center: Vector,
+    pixel00_loc: Vector,
+    pixel_delta_u: Vector,
+    pixel_delta_v: Vector,
+}
+
+fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
+    let image_height: u32 = (image_width as f64 / aspect_ratio) as u32;
+
+    // camera
+    const FOCAL_LENGTH: f64 = 1.0;
+    const VIEWPORT_HEIGHT: f64 = 2.0;
+    let viewport_width: f64 = VIEWPORT_HEIGHT * (image_width as f64 / image_height as f64);
+
+    // horiz/vert viewport edges
+    let viewport_u = Vector {
+        x: viewport_width,
+        y: 0.0,
+        z: 0.0,
+    };
+    let viewport_v = Vector {
+        x: 0.0,
+        y: -VIEWPORT_HEIGHT,
+        z: 0.0,
+    };
+
+    // horiz/vert delta
+    let pixel_delta_u = viewport_u / image_width as f64;
+    let pixel_delta_v = viewport_v / image_height as f64;
+
+    // upper left pixel
+    let viewport_upper_left = center
+        - Vector {
+            x: 0.0,
+            y: 0.0,
+            z: FOCAL_LENGTH,
+        }
+        - viewport_u / 2.0
+        - viewport_v / 2.0;
+    let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+    Camera {
+        aspect_ratio,
+        image_width,
+        image_height,
+        center,
+        pixel00_loc,
+        pixel_delta_u,
+        pixel_delta_v,
+    }
+}
+
+impl Camera {
+    fn render<T>(self, world: &T)
+    where
+        T: Hittable,
+    {
+        println!("P3\n{0} {1} \n255\n", self.image_width, self.image_height);
+        for j in 0..self.image_height {
+            eprintln!("Scanlines remaining: {0}", self.image_height - j);
+            for i in 0..self.image_width {
+                let pixel_center = self.pixel00_loc
+                    + (self.pixel_delta_u * i as f64)
+                    + (self.pixel_delta_v * j as f64);
+                let ray_direction = pixel_center - self.center;
+                let r = Ray {
+                    origin: self.center,
+                    direction: ray_direction,
+                };
+
+                let pixel_color = ray_color(r, world);
+                write_color(pixel_color)
+            }
+        }
+    }
+    fn ray_color<T>(r: Ray, world: &T) -> Vector
+    where
+        T: Hittable,
+    {
+        let (h, rec) = world.hit(
+            &r,
+            Interval {
+                min: 0.0,
+                max: std::f64::INFINITY,
+            },
+        );
+        if h {
+            return (rec.normal
+                + Vector {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                })
+                * 0.5;
+        }
+
+        let unit_direction = r.direction.unit_vector();
+        let a = (unit_direction.y + 1.0) * 0.5;
+        Vector {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+        } * (1.0 - a)
+            + Vector {
+                x: 0.5,
+                y: 0.7,
+                z: 1.0,
+            } * (a)
+    }
+}
+
 #[derive(Copy, Clone)]
 struct Interval {
     min: f64,
@@ -290,10 +404,6 @@ fn write_color(color: Vector) {
 }
 
 fn main() {
-    const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 400;
-    const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
-
     let mut world = HittableList {
         objects: Vec::new(),
     };
@@ -316,59 +426,16 @@ fn main() {
         radius: 100.0,
     }));
 
-    // camera
-    const FOCAL_LENGTH: f64 = 1.0;
-    const VIEWPORT_HEIGHT: f64 = 2.0;
-    const VIEWPORT_WIDTH: f64 = VIEWPORT_HEIGHT * (IMAGE_WIDTH as f64 / IMAGE_HEIGHT as f64);
-    let camera_center = Point {
-        x: 0.0,
-        y: 0.0,
-        z: 0.0,
-    };
-
-    // horiz/vert viewport edges
-    let viewport_u = Vector {
-        x: VIEWPORT_WIDTH,
-        y: 0.0,
-        z: 0.0,
-    };
-    let viewport_v = Vector {
-        x: 0.0,
-        y: -VIEWPORT_HEIGHT,
-        z: 0.0,
-    };
-
-    // horiz/vert delta
-    let pixel_delta_u = viewport_u / IMAGE_WIDTH as f64;
-    let pixel_delta_v = viewport_v / IMAGE_HEIGHT as f64;
-
-    // upper left pixel
-    let viewport_upper_left = camera_center
-        - Vector {
+    let cam = new_camera(
+        16.0 / 9.0,
+        400,
+        Vector {
             x: 0.0,
             y: 0.0,
-            z: FOCAL_LENGTH,
-        }
-        - viewport_u / 2.0
-        - viewport_v / 2.0;
-    let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+            z: 0.0,
+        },
+    );
 
-    println!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT} \n255\n");
-
-    for j in 0..IMAGE_HEIGHT {
-        eprintln!("Scanlines remaining: {0}", IMAGE_HEIGHT - j);
-        for i in 0..IMAGE_WIDTH {
-            let pixel_center =
-                pixel00_loc + (pixel_delta_u * i as f64) + (pixel_delta_v * j as f64);
-            let ray_direction = pixel_center - camera_center;
-            let r = Ray {
-                origin: camera_center,
-                direction: ray_direction,
-            };
-
-            let pixel_color = ray_color(r, &world);
-            write_color(pixel_color)
-        }
-    }
+    cam.render(&world);
     eprintln!("\rDone.                 \n");
 }
