@@ -1,6 +1,30 @@
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+#[derive(Copy, Clone)]
+struct Interval {
+    min: f64,
+    max: f64,
+}
+
+impl Default for Interval {
+    fn default() -> Interval {
+        Interval {
+            min: std::f64::INFINITY,
+            max: -std::f64::INFINITY,
+        }
+    }
+}
+
+impl Interval {
+    fn contains(self, x: f64) -> bool {
+        self.min <= x && x <= self.max
+    }
+    fn surrounds(self, x: f64) -> bool {
+        self.min < x && x < self.max
+    }
+}
+
 #[derive(Copy, Clone, Default)]
 struct HitRecord {
     p: Point,
@@ -25,15 +49,21 @@ struct HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord) {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
         let mut hit_anything = false;
-        let mut closest_so_far = ray_tmax;
+        let mut closest_so_far = ray_t.max;
         let mut record = HitRecord::default();
         let mut temp_rec = HitRecord::default();
 
         for obj in &self.objects {
             let h: bool;
-            (h, temp_rec) = obj.hit(r, ray_tmin, closest_so_far);
+            (h, temp_rec) = obj.hit(
+                r,
+                Interval {
+                    min: ray_t.min,
+                    max: closest_so_far,
+                },
+            );
             if h {
                 hit_anything = true;
                 closest_so_far = record.t;
@@ -55,7 +85,7 @@ impl HittableList {
 }
 
 trait Hittable {
-    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord);
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord);
 }
 
 struct Sphere {
@@ -64,7 +94,7 @@ struct Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord) {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = oc.dot(r.direction);
@@ -79,9 +109,9 @@ impl Hittable for Sphere {
         let sqrtd = discriminant.sqrt();
 
         let mut root = (-half_b - sqrtd) / a;
-        if root <= ray_tmin || ray_tmax <= root {
+        if !ray_t.surrounds(root) {
             root = (-half_b + sqrtd) / a;
-            if root <= ray_tmin || ray_tmax <= root {
+            if !ray_t.surrounds(root) {
                 return (false, record);
             }
         }
@@ -214,7 +244,13 @@ fn ray_color<T>(r: Ray, world: &T) -> Vector
 where
     T: Hittable,
 {
-    let (h, rec) = world.hit(&r, 0.0, std::f64::INFINITY);
+    let (h, rec) = world.hit(
+        &r,
+        Interval {
+            min: 0.0,
+            max: std::f64::INFINITY,
+        },
+    );
     if h {
         return (rec.normal
             + Vector {
