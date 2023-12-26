@@ -3,10 +3,11 @@ use rand::Rng;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-trait Scatterer<T> {
-    fn scatter(self, r: &Ray) -> (bool, Vector, Ray);
+trait Scatterer {
+    fn scatter(self, r: &Ray, rec: HitRecord) -> (bool, Vector, Ray);
 }
 
+#[derive(Copy, Clone, Default)]
 struct Lambertian {
     albedo: Vector,
 }
@@ -188,15 +189,12 @@ impl Interval {
 }
 
 #[derive(Copy, Clone, Default)]
-struct HitRecord<T>
-where
-    T: Scatterer,
-{
+struct HitRecord {
     p: Point,
     normal: Vector,
     t: f64,
     front_face: bool,
-    mat: T,
+    mat: Lambertian,
 }
 
 impl HitRecord {
@@ -254,16 +252,13 @@ trait Hittable {
     fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord);
 }
 
-struct Sphere<T>
-where
-    T: Scatterer,
-{
+struct Sphere {
     center: Point,
     radius: f64,
-    mat: T,
+    mat: Lambertian,
 }
 
-impl<T> Hittable for Sphere<T> {
+impl Hittable for Sphere {
     fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
@@ -271,6 +266,7 @@ impl<T> Hittable for Sphere<T> {
         let c = oc.length_squared() - self.radius * self.radius;
 
         let mut record = HitRecord::default();
+        record.mat = self.mat;
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
@@ -365,16 +361,16 @@ impl Div<f64> for Vector {
     }
 }
 
-//impl Mul for Vec {
-//    type Output = Vec;
-//    fn mul(self, rhs: Vec) -> Self::Output {
-//        Vec {
-//            x: self.x * rhs.x,
-//            y: self.y * rhs.y,
-//            z: self.z * rhs.z,
-//        }
-//    }
-//}
+impl Mul for Vector {
+    type Output = Vector;
+    fn mul(self, rhs: Vector) -> Self::Output {
+        Vector {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+        }
+    }
+}
 
 impl Vector {
     fn length(self) -> f64 {
@@ -430,18 +426,17 @@ where
     );
     if h {
         let (s, attenuation, scattered) = rec.mat.scatter(&r, rec);
+        eprintln!("material albedo: {0}", rec.mat.albedo);
         if s {
-            return attenuation * ray_color(scattered, world, depth - 1);
+            eprintln!("attenuation: {0}", attenuation);
+            return ray_color(scattered, world, depth - 1) * attenuation;
+        } else {
+            return Vector {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            };
         }
-        let direction = rec.normal + rand_unit_vector();
-        return ray_color(
-            Ray {
-                origin: rec.p,
-                direction,
-            },
-            world,
-            depth - 1,
-        ) * 0.5;
     }
 
     let unit_direction = r.direction.unit_vector();
