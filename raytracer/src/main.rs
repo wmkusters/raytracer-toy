@@ -8,6 +8,33 @@ fn rand_in_range(min: f64, max: f64) -> f64 {
     y as f64
 }
 
+fn rand_vector(min: f64, max: f64) -> Vector {
+    Vector {
+        x: rand_in_range(min, max),
+        y: rand_in_range(min, max),
+        z: rand_in_range(min, max),
+    }
+}
+
+fn rand_unit_vector() -> Vector {
+    let mut p = rand_vector(-1.0, 1.0);
+    loop {
+        if p.length_squared() < 1.0 {
+            return p.unit_vector();
+        }
+        p = rand_vector(-1.0, 1.0);
+    }
+}
+
+fn rand_on_hemisphere(normal: Vector) -> Vector {
+    let on_unit_sphere = rand_unit_vector();
+    if on_unit_sphere.dot(normal) > 0.0 {
+        return on_unit_sphere;
+    } else {
+        return -on_unit_sphere;
+    }
+}
+
 struct Camera {
     aspect_ratio: f64,
     image_width: u32,
@@ -366,13 +393,14 @@ where
         },
     );
     if h {
-        return (rec.normal
-            + Vector {
-                x: 1.0,
-                y: 1.0,
-                z: 1.0,
-            })
-            * 0.5;
+        let direction = rand_on_hemisphere(rec.normal);
+        return ray_color(
+            Ray {
+                origin: rec.p,
+                direction,
+            },
+            world,
+        ) * 0.5;
     }
 
     let unit_direction = r.direction.unit_vector();
