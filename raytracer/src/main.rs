@@ -44,6 +44,7 @@ struct Camera {
     pixel_delta_u: Vector,
     pixel_delta_v: Vector,
     samples_per_pixel: i32,
+    max_depth: u32,
 }
 
 fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
@@ -90,6 +91,7 @@ fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
         pixel_delta_u,
         pixel_delta_v,
         samples_per_pixel: SAMPLES_PER_PIXEL,
+        max_depth: 10,
     }
 }
 
@@ -109,7 +111,7 @@ impl Camera {
                 };
                 for _ in 0..self.samples_per_pixel {
                     let r = self.get_ray(i, j);
-                    pixel_color = pixel_color + ray_color(r, world);
+                    pixel_color = pixel_color + ray_color(r, world, self.max_depth);
                 }
                 write_color(pixel_color, self.samples_per_pixel)
             }
@@ -381,25 +383,33 @@ struct Ray {
     direction: Vector,
 }
 
-fn ray_color<T>(r: Ray, world: &T) -> Vector
+fn ray_color<T>(r: Ray, world: &T, depth: u32) -> Vector
 where
     T: Hittable,
 {
+    if depth == 0 {
+        return Vector {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+    }
     let (h, rec) = world.hit(
         &r,
         Interval {
-            min: 0.0,
+            min: 0.001,
             max: std::f64::INFINITY,
         },
     );
     if h {
-        let direction = rand_on_hemisphere(rec.normal);
+        let direction = rec.normal + rand_unit_vector();
         return ray_color(
             Ray {
                 origin: rec.p,
                 direction,
             },
             world,
+            depth - 1,
         ) * 0.5;
     }
 
