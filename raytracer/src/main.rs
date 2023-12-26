@@ -3,6 +3,25 @@ use rand::Rng;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+trait Scatterer<T> {
+    fn scatter(self, r: &Ray) -> (bool, Vector, Ray);
+}
+
+struct Lambertian {
+    albedo: Vector,
+}
+
+impl Scatterer for Lambertian {
+    fn scatter(self, r: &Ray, rec: HitRecord) -> (bool, Vector, Ray) {
+        let scatter_direction = rec.normal + rand_unit_vector();
+        let scattered = Ray {
+            origin: rec.p,
+            direction: scatter_direction,
+        };
+        return (true, self.albedo, scattered);
+    }
+}
+
 fn rand_in_range(min: f64, max: f64) -> f64 {
     let y = rand::thread_rng().gen_range(min..max);
     y as f64
@@ -169,11 +188,15 @@ impl Interval {
 }
 
 #[derive(Copy, Clone, Default)]
-struct HitRecord {
+struct HitRecord<T>
+where
+    T: Scatterer,
+{
     p: Point,
     normal: Vector,
     t: f64,
     front_face: bool,
+    mat: T,
 }
 
 impl HitRecord {
@@ -231,12 +254,16 @@ trait Hittable {
     fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord);
 }
 
-struct Sphere {
+struct Sphere<T>
+where
+    T: Scatterer,
+{
     center: Point,
     radius: f64,
+    mat: T,
 }
 
-impl Hittable for Sphere {
+impl<T> Hittable for Sphere<T> {
     fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
@@ -402,6 +429,10 @@ where
         },
     );
     if h {
+        let (s, attenuation, scattered) = rec.mat.scatter(&r, rec);
+        if s {
+            return attenuation * ray_color(scattered, world, depth - 1);
+        }
         let direction = rec.normal + rand_unit_vector();
         return ray_color(
             Ray {
@@ -475,8 +506,16 @@ fn main() {
             z: -1.0,
         },
         radius: 0.5,
+        mat: Lambertian {
+            albedo: Vector {
+                x: 0.7,
+                y: 0.3,
+                z: 0.3,
+            },
+        },
     }));
 
+    // ground
     world.objects.push(Box::new(Sphere {
         center: Point {
             x: 0.0,
@@ -484,6 +523,13 @@ fn main() {
             z: -1.0,
         },
         radius: 100.0,
+        mat: Lambertian {
+            albedo: Vector {
+                x: 0.8,
+                y: 0.8,
+                z: 0.0,
+            },
+        },
     }));
 
     let cam = new_camera(
