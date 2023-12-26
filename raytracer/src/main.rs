@@ -10,12 +10,12 @@ struct HitRecord {
 }
 
 impl HitRecord {
-    fn set_face_normal(self, r: &Ray, outward_normal: Vector) {
+    fn set_face_normal(&mut self, r: &Ray, outward_normal: Vector) {
         self.front_face = r.direction.dot(outward_normal) < 0.0;
-        self.normal = if self.front_face {
-            outward_normal
+        if self.front_face {
+            self.normal = outward_normal;
         } else {
-            -outward_normal
+            self.normal = -outward_normal;
         };
     }
 }
@@ -25,34 +25,37 @@ struct HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(self, r: &Ray, ray_tmin: f64, ray_tmax: f64, record: &mut HitRecord) -> bool {
-        let mut temp_rec: HitRecord = Default::default();
-        let hit_anything = false;
-        let closest_so_far = ray_tmax;
+    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord) {
+        let mut hit_anything = false;
+        let mut closest_so_far = ray_tmax;
+        let mut record = HitRecord::default();
+        let mut temp_rec = HitRecord::default();
 
         for obj in &self.objects {
-            if obj.hit(r, ray_tmin, closest_so_far, &mut temp_rec) {
+            let h: bool;
+            (h, temp_rec) = obj.hit(r, ray_tmin, closest_so_far);
+            if h {
                 hit_anything = true;
-                closest_so_far = temp_rec.t;
-                record = &mut temp_rec;
+                closest_so_far = record.t;
+                record = temp_rec;
             }
         }
-        hit_anything
+        (hit_anything, record)
     }
 }
 
 impl HittableList {
-    fn add(self, item: Box<dyn Hittable>) {
+    fn add(mut self, item: Box<dyn Hittable>) {
         self.objects.push(item);
     }
 
-    fn clear(self) {
+    fn clear(mut self) {
         self.objects = Vec::new();
     }
 }
 
 trait Hittable {
-    fn hit(self, r: &Ray, ray_tmin: f64, ray_tmax: f64, record: &mut HitRecord) -> bool;
+    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord);
 }
 
 struct Sphere {
@@ -61,15 +64,17 @@ struct Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(self, r: &Ray, ray_tmin: f64, ray_tmax: f64, record: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, ray_tmin: f64, ray_tmax: f64) -> (bool, HitRecord) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = oc.dot(r.direction);
         let c = oc.length_squared() - self.radius * self.radius;
 
+        let mut record = HitRecord::default();
+
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return false;
+            return (false, record);
         }
         let sqrtd = discriminant.sqrt();
 
@@ -77,7 +82,7 @@ impl Hittable for Sphere {
         if root <= ray_tmin || ray_tmax <= root {
             root = (-half_b + sqrtd) / a;
             if root <= ray_tmin || ray_tmax <= root {
-                return false;
+                return (false, record);
             }
         }
 
@@ -86,7 +91,7 @@ impl Hittable for Sphere {
         let outward_normal = (record.p - self.center) / self.radius;
         record.set_face_normal(r, outward_normal);
 
-        return true;
+        return (true, record);
     }
 }
 
@@ -205,9 +210,12 @@ struct Ray {
     direction: Vector,
 }
 
-fn ray_color(r: Ray, world: Box<dyn Hittable>) -> Vector {
-    let rec = HitRecord::default();
-    if world.hit(&r, 0.0, std::f64::INFINITY, &mut rec) {
+fn ray_color<T>(r: Ray, world: &T) -> Vector
+where
+    T: Hittable,
+{
+    let (h, rec) = world.hit(&r, 0.0, std::f64::INFINITY);
+    if h {
         return (rec.normal
             + Vector {
                 x: 1.0,
@@ -250,11 +258,11 @@ fn main() {
     const IMAGE_WIDTH: u32 = 400;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
 
-    let world = HittableList {
+    let mut world = HittableList {
         objects: Vec::new(),
     };
 
-    world.add(Box::new(Sphere {
+    world.objects.push(Box::new(Sphere {
         center: Point {
             x: 0.0,
             y: 0.0,
@@ -262,7 +270,8 @@ fn main() {
         },
         radius: 0.5,
     }));
-    world.add(Box::new(Sphere {
+
+    world.objects.push(Box::new(Sphere {
         center: Point {
             x: 0.0,
             y: -100.5,
@@ -321,7 +330,7 @@ fn main() {
                 direction: ray_direction,
             };
 
-            let pixel_color = ray_color(r, Box::new(world));
+            let pixel_color = ray_color(r, &world);
             write_color(pixel_color)
         }
     }
