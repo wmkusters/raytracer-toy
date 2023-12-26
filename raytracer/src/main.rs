@@ -1,10 +1,9 @@
-use rand::prelude::thread_rng;
 use rand::Rng;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 trait Scatterer {
-    fn scatter(self, r: &Ray, rec: HitRecord) -> (bool, Vector, Ray);
+    fn scatter<S>(&self, r: &Ray, rec: &HitRecord<S>) -> (bool, Vector, Ray);
 }
 
 #[derive(Copy, Clone, Default)]
@@ -13,7 +12,7 @@ struct Lambertian {
 }
 
 impl Scatterer for Lambertian {
-    fn scatter(self, r: &Ray, rec: HitRecord) -> (bool, Vector, Ray) {
+    fn scatter<S>(&self, r: &Ray, rec: &HitRecord<S>) -> (bool, Vector, Ray) {
         let scatter_direction = rec.normal + rand_unit_vector();
         let scattered = Ray {
             origin: rec.p,
@@ -116,9 +115,10 @@ fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
 }
 
 impl Camera {
-    fn render<T>(self, world: &T)
+    fn render<T, S>(self, world: &T)
     where
-        T: Hittable,
+        S: Scatterer,
+        T: Hittable<S>,
     {
         println!("P3\n{0} {1} \n255\n", self.image_width, self.image_height);
         for j in 0..self.image_height {
@@ -189,15 +189,18 @@ impl Interval {
 }
 
 #[derive(Copy, Clone, Default)]
-struct HitRecord {
+struct HitRecord<S> {
     p: Point,
     normal: Vector,
     t: f64,
     front_face: bool,
-    mat: Lambertian,
+    mat: S,
 }
 
-impl HitRecord {
+impl<S> HitRecord<S>
+where
+    S: Scatterer,
+{
     fn set_face_normal(&mut self, r: &Ray, outward_normal: Vector) {
         self.front_face = r.direction.dot(outward_normal) < 0.0;
         if self.front_face {
@@ -208,12 +211,18 @@ impl HitRecord {
     }
 }
 
-struct HittableList {
-    objects: Vec<Box<dyn Hittable>>,
+struct HittableList<S>
+where
+    S: Scatterer,
+{
+    objects: Vec<Box<dyn Hittable<S>>>,
 }
 
-impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
+impl<S> Hittable<S> for HittableList<S>
+where
+    S: Scatterer + std::default::Default,
+{
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>) {
         let mut hit_anything = false;
         let mut closest_so_far = ray_t.max;
         let mut record = HitRecord::default();
@@ -238,8 +247,11 @@ impl Hittable for HittableList {
     }
 }
 
-impl HittableList {
-    fn add(mut self, item: Box<dyn Hittable>) {
+impl<S> HittableList<S>
+where
+    S: Scatterer,
+{
+    fn add(mut self, item: Box<dyn Hittable<S>>) {
         self.objects.push(item);
     }
 
@@ -248,18 +260,21 @@ impl HittableList {
     }
 }
 
-trait Hittable {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord);
+trait Hittable<S> {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>);
 }
 
-struct Sphere {
+struct Sphere<S> {
     center: Point,
     radius: f64,
-    mat: Lambertian,
+    mat: S,
 }
 
-impl Hittable for Sphere {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord) {
+impl<S> Hittable<S> for Sphere<S>
+where
+    S: Scatterer + std::default::Default + Copy,
+{
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = oc.dot(r.direction);
@@ -406,9 +421,10 @@ struct Ray {
     direction: Vector,
 }
 
-fn ray_color<T>(r: Ray, world: &T, depth: u32) -> Vector
+fn ray_color<T, S>(r: Ray, world: &T, depth: u32) -> Vector
 where
-    T: Hittable,
+    S: Scatterer,
+    T: Hittable<S>,
 {
     if depth == 0 {
         return Vector {
@@ -425,10 +441,8 @@ where
         },
     );
     if h {
-        let (s, attenuation, scattered) = rec.mat.scatter(&r, rec);
-        eprintln!("material albedo: {0}", rec.mat.albedo);
+        let (s, attenuation, scattered) = rec.mat.scatter(&r, &rec);
         if s {
-            eprintln!("attenuation: {0}", attenuation);
             return ray_color(scattered, world, depth - 1) * attenuation;
         } else {
             return Vector {
