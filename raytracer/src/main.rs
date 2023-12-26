@@ -1,5 +1,12 @@
+use rand::prelude::thread_rng;
+use rand::Rng;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
+
+fn rand_in_range(min: f64, max: f64) -> f64 {
+    let y = rand::thread_rng().gen_range(min..max);
+    y as f64
+}
 
 struct Camera {
     aspect_ratio: f64,
@@ -9,6 +16,7 @@ struct Camera {
     pixel00_loc: Vector,
     pixel_delta_u: Vector,
     pixel_delta_v: Vector,
+    samples_per_pixel: i32,
 }
 
 fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
@@ -45,6 +53,7 @@ fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
         - viewport_u / 2.0
         - viewport_v / 2.0;
     let pixel00_loc = viewport_upper_left + (pixel_delta_u + pixel_delta_v) * 0.5;
+    const SAMPLES_PER_PIXEL: i32 = 10;
     Camera {
         aspect_ratio,
         image_width,
@@ -53,6 +62,7 @@ fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
         pixel00_loc,
         pixel_delta_u,
         pixel_delta_v,
+        samples_per_pixel: SAMPLES_PER_PIXEL,
     }
 }
 
@@ -65,53 +75,34 @@ impl Camera {
         for j in 0..self.image_height {
             eprintln!("Scanlines remaining: {0}", self.image_height - j);
             for i in 0..self.image_width {
-                let pixel_center = self.pixel00_loc
-                    + (self.pixel_delta_u * i as f64)
-                    + (self.pixel_delta_v * j as f64);
-                let ray_direction = pixel_center - self.center;
-                let r = Ray {
-                    origin: self.center,
-                    direction: ray_direction,
+                let mut pixel_color = Vector {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
                 };
-
-                let pixel_color = ray_color(r, world);
-                write_color(pixel_color)
+                for _ in 0..self.samples_per_pixel {
+                    let r = self.get_ray(i, j);
+                    pixel_color = pixel_color + ray_color(r, world);
+                }
+                write_color(pixel_color, self.samples_per_pixel)
             }
         }
     }
-    fn ray_color<T>(r: Ray, world: &T) -> Vector
-    where
-        T: Hittable,
-    {
-        let (h, rec) = world.hit(
-            &r,
-            Interval {
-                min: 0.0,
-                max: std::f64::INFINITY,
-            },
-        );
-        if h {
-            return (rec.normal
-                + Vector {
-                    x: 1.0,
-                    y: 1.0,
-                    z: 1.0,
-                })
-                * 0.5;
-        }
+    fn get_ray(&self, i: u32, j: u32) -> Ray {
+        let pixel_center =
+            self.pixel00_loc + (self.pixel_delta_u * i as f64) + (self.pixel_delta_v * j as f64);
+        let pixel_sample = pixel_center + self.pixel_sample_square();
 
-        let unit_direction = r.direction.unit_vector();
-        let a = (unit_direction.y + 1.0) * 0.5;
-        Vector {
-            x: 1.0,
-            y: 1.0,
-            z: 1.0,
-        } * (1.0 - a)
-            + Vector {
-                x: 0.5,
-                y: 0.7,
-                z: 1.0,
-            } * (a)
+        let ray_direction = pixel_sample - self.center;
+        Ray {
+            origin: self.center,
+            direction: ray_direction,
+        }
+    }
+    fn pixel_sample_square(&self) -> Vector {
+        let px = -0.5 + rand_in_range(0.0, 0.99999);
+        let py = -0.5 + rand_in_range(0.0, 0.99999);
+        self.pixel_delta_u * px + self.pixel_delta_v * py
     }
 }
 
@@ -136,6 +127,15 @@ impl Interval {
     }
     fn surrounds(self, x: f64) -> bool {
         self.min < x && x < self.max
+    }
+    fn clamp(self, x: f64) -> f64 {
+        if x < self.min {
+            return self.min;
+        }
+        if x > self.max {
+            return self.max;
+        }
+        x
     }
 }
 
@@ -395,11 +395,25 @@ impl Ray {
     }
 }
 
-fn write_color(color: Vector) {
-    let output = color * 255.999;
+fn write_color(color: Vector, samples_per_pixel: i32) {
+    let mut r = color.x;
+    let mut g = color.y;
+    let mut b = color.z;
+
+    let scale = 1.0 / samples_per_pixel as f64;
+    r *= scale;
+    g *= scale;
+    b *= scale;
+
+    let intensity = Interval {
+        min: 0.0,
+        max: 0.999,
+    };
     println!(
         "{0} {1} {2}",
-        output.x as i32, output.y as i32, output.z as i32,
+        (255.99 * intensity.clamp(r)) as i32,
+        (255.99 * intensity.clamp(g)) as i32,
+        (255.99 * intensity.clamp(b)) as i32,
     );
 }
 
