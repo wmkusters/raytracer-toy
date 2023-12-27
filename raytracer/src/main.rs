@@ -545,21 +545,35 @@ fn main() {
         objects: Vec::new(),
     };
 
-    world.objects.push(Box::new(Sphere {
-        center: Point {
-            x: 0.0,
-            y: 0.0,
-            z: -1.0,
+    let material_ground = Material::Lambertian(Lambertian {
+        albedo: Vector {
+            x: 0.8,
+            y: 0.8,
+            z: 0.0,
         },
-        radius: 0.5,
-        mat: Material::Metal(Metal {
-            albedo: Vector {
-                x: 0.8,
-                y: 0.8,
-                z: 0.8,
-            },
-        }),
-    }));
+    });
+    let material_center = Material::Lambertian(Lambertian {
+        albedo: Vector {
+            x: 0.8,
+            y: 0.8,
+            z: 0.0,
+        },
+    });
+
+    let material_left = Material::Metal(Metal {
+        albedo: Vector {
+            x: 0.8,
+            y: 0.8,
+            z: 0.8,
+        },
+    });
+    let material_right = Material::Metal(Metal {
+        albedo: Vector {
+            x: 0.8,
+            y: 0.6,
+            z: 0.2,
+        },
+    });
 
     // ground
     world.objects.push(Box::new(Sphere {
@@ -569,18 +583,42 @@ fn main() {
             z: -1.0,
         },
         radius: 100.0,
-        mat: Material::Lambertian(Lambertian {
-            albedo: Vector {
-                x: 0.8,
-                y: 0.8,
-                z: 0.0,
-            },
-        }),
+        mat: material_ground,
+    }));
+
+    world.objects.push(Box::new(Sphere {
+        center: Point {
+            x: 0.0,
+            y: 0.0,
+            z: -1.0,
+        },
+        radius: 0.5,
+        mat: material_center,
+    }));
+
+    world.objects.push(Box::new(Sphere {
+        center: Point {
+            x: -1.0,
+            y: 0.0,
+            z: -1.0,
+        },
+        radius: 0.5,
+        mat: material_left,
+    }));
+
+    world.objects.push(Box::new(Sphere {
+        center: Point {
+            x: 1.0,
+            y: 0.0,
+            z: -1.0,
+        },
+        radius: 0.5,
+        mat: material_right,
     }));
 
     let cam = new_camera(
         16.0 / 9.0,
-        400,
+        1200,
         Vector {
             x: 0.0,
             y: 0.0,
