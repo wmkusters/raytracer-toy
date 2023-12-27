@@ -246,7 +246,7 @@ impl Hittable for HittableList {
         let mut record = HitRecord::default();
         let mut temp_rec: HitRecord;
         let mut mat: Option<&Material> = None;
-        let mut new_mat: Option<&Material> = None;
+        let mut new_mat: Option<&Material>;
 
         for obj in &self.objects {
             let h: bool;
@@ -283,6 +283,7 @@ trait Hittable {
     fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord, Option<&Material>);
 }
 
+#[derive(Copy, Clone)]
 enum Material {
     Lambertian(Lambertian),
     Metal(Metal),
@@ -294,6 +295,124 @@ impl Material {
             Material::Lambertian(t) => t.scatter(r, rec),
             Material::Metal(t) => t.scatter(r, rec),
         }
+    }
+}
+
+struct Pyramid {
+    v0: Point,
+    v1: Point,
+    v2: Point,
+    v3: Point,
+    v4: Point, // top
+    mat: Material,
+}
+
+impl Pyramid {
+    fn generate_faces(self) -> Vec<Triangle> {
+        let mut v: Vec<Triangle> = Vec::new();
+        let bot_t1 = Triangle {
+            v0: self.v0,
+            v1: self.v1,
+            v2: self.v2,
+            mat: self.mat,
+        };
+        let bot_t2 = Triangle {
+            v0: self.v1,
+            v1: self.v2,
+            v2: self.v3,
+            mat: self.mat,
+        };
+
+        let side_1 = Triangle {
+            v0: self.v0,
+            v1: self.v1,
+            v2: self.v4,
+            mat: self.mat,
+        };
+        let side_2 = Triangle {
+            v0: self.v1,
+            v1: self.v2,
+            v2: self.v4,
+            mat: self.mat,
+        };
+        let side_3 = Triangle {
+            v0: self.v2,
+            v1: self.v3,
+            v2: self.v4,
+            mat: self.mat,
+        };
+        let side_4 = Triangle {
+            v0: self.v3,
+            v1: self.v0,
+            v2: self.v4,
+            mat: self.mat,
+        };
+        v.push(bot_t1);
+        v.push(bot_t2);
+        v.push(side_1);
+        v.push(side_2);
+        v.push(side_3);
+        v.push(side_4);
+        v
+    }
+}
+
+struct Triangle {
+    v0: Point,
+    v1: Point,
+    v2: Point,
+    mat: Material,
+}
+
+impl Hittable for Triangle {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord, Option<&Material>) {
+        let mut record = HitRecord::default();
+
+        // compute the triangle's normal
+        let v0v1 = self.v1 - self.v0;
+        let v0v2 = self.v2 - self.v0;
+        let n = v0v1.cross(v0v2);
+        let area2 = n.length();
+
+        // find P
+        // check parallel
+        let n_dot_ray = n.dot(r.direction);
+        if n_dot_ray.abs() < 0.00001 {
+            return (false, record, None);
+        }
+        let d = -n.dot(self.v0);
+        let t = -(n.dot(r.origin) + d) / n_dot_ray;
+        if t < 0.0 {
+            return (false, record, None);
+        }
+        let p = r.origin + r.direction * t;
+        let mut c: Vector;
+
+        // edge 0
+        let edge0 = self.v1 - self.v0;
+        let vp0 = p - self.v0;
+        c = edge0.cross(vp0);
+        if n.dot(c) < 0.0 {
+            return (false, record, None);
+        }
+
+        let edge1 = self.v2 - self.v1;
+        let vp1 = p - self.v1;
+        c = edge1.cross(vp1);
+        if n.dot(c) < 0.0 {
+            return (false, record, None);
+        }
+
+        let edge2 = self.v0 - self.v2;
+        let vp2 = p - self.v2;
+        c = edge2.cross(vp2);
+        if n.dot(c) < 0.0 {
+            return (false, record, None);
+        }
+        record.t = t;
+        record.p = p;
+        record.set_face_normal(r, n);
+        (true, record, Some(&self.mat))
     }
 }
 
@@ -575,6 +694,38 @@ fn main() {
         },
     });
 
+    let pyramid = Pyramid {
+        v0: Point {
+            x: -0.7,
+            y: 0.0,
+            z: -0.9,
+        },
+        v1: Point {
+            x: 0.3,
+            y: 0.0,
+            z: -1.1,
+        },
+        v2: Point {
+            x: 0.3,
+            y: 0.0,
+            z: -1.9,
+        },
+        v3: Point {
+            x: -0.7,
+            y: 0.0,
+            z: -2.1,
+        },
+        v4: Point {
+            x: 0.0,
+            y: 0.5,
+            z: -1.5,
+        },
+        mat: material_center,
+    };
+    for face in pyramid.generate_faces() {
+        world.objects.push(Box::new(face))
+    }
+
     // ground
     world.objects.push(Box::new(Sphere {
         center: Point {
@@ -586,39 +737,58 @@ fn main() {
         mat: material_ground,
     }));
 
-    world.objects.push(Box::new(Sphere {
-        center: Point {
-            x: 0.0,
-            y: 0.0,
+    world.objects.push(Box::new(Triangle {
+        v0: Point {
+            x: -0.5,
+            y: -0.5,
             z: -1.0,
         },
-        radius: 0.5,
+        v1: Point {
+            x: 0.5,
+            y: -0.5,
+            z: -1.0,
+        },
+        v2: Point {
+            x: 0.0,
+            y: 0.5,
+            z: -1.5,
+        },
         mat: material_center,
     }));
 
-    world.objects.push(Box::new(Sphere {
-        center: Point {
-            x: -1.0,
-            y: 0.0,
-            z: -1.0,
-        },
-        radius: 0.5,
-        mat: material_left,
-    }));
+    //world.objects.push(Box::new(Sphere {
+    //    center: Point {
+    //        x: 0.0,
+    //        y: 0.0,
+    //        z: -1.0,
+    //    },
+    //    radius: 0.5,
+    //    mat: material_center,
+    //}));
 
-    world.objects.push(Box::new(Sphere {
-        center: Point {
-            x: 1.0,
-            y: 0.0,
-            z: -1.0,
-        },
-        radius: 0.5,
-        mat: material_right,
-    }));
+    //world.objects.push(Box::new(Sphere {
+    //    center: Point {
+    //        x: -1.0,
+    //        y: 0.0,
+    //        z: -1.0,
+    //    },
+    //    radius: 0.5,
+    //    mat: material_left,
+    //}));
+
+    //world.objects.push(Box::new(Sphere {
+    //    center: Point {
+    //        x: 1.0,
+    //        y: 0.0,
+    //        z: -1.0,
+    //    },
+    //    radius: 0.5,
+    //    mat: material_right,
+    //}));
 
     let cam = new_camera(
         16.0 / 9.0,
-        1200,
+        400,
         Vector {
             x: 0.0,
             y: 0.0,
