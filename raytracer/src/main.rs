@@ -3,7 +3,23 @@ use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 trait Scatterer {
-    fn scatter<S>(&self, r: &Ray, rec: &HitRecord<S>) -> (bool, Vector, Ray);
+    fn scatter(&self, r: &Ray, rec: &HitRecord) -> (bool, Vector, Ray);
+}
+
+#[derive(Copy, Clone, Default)]
+struct Metal {
+    albedo: Vector,
+}
+
+impl Scatterer for Metal {
+    fn scatter(&self, r: &Ray, rec: &HitRecord) -> (bool, Vector, Ray) {
+        let reflected = r.direction.unit_vector().reflect(rec.normal);
+        let scattered = Ray {
+            origin: rec.p,
+            direction: reflected,
+        };
+        return (true, self.albedo, scattered);
+    }
 }
 
 #[derive(Copy, Clone, Default)]
@@ -12,8 +28,11 @@ struct Lambertian {
 }
 
 impl Scatterer for Lambertian {
-    fn scatter<S>(&self, r: &Ray, rec: &HitRecord<S>) -> (bool, Vector, Ray) {
-        let scatter_direction = rec.normal + rand_unit_vector();
+    fn scatter(&self, _r: &Ray, rec: &HitRecord) -> (bool, Vector, Ray) {
+        let mut scatter_direction = rec.normal + rand_unit_vector();
+        if scatter_direction.near_zero() {
+            scatter_direction = rec.normal;
+        }
         let scattered = Ray {
             origin: rec.p,
             direction: scatter_direction,
@@ -115,10 +134,9 @@ fn new_camera(aspect_ratio: f64, image_width: u32, center: Vector) -> Camera {
 }
 
 impl Camera {
-    fn render<T, S>(self, world: &T)
+    fn render<T>(self, world: &T)
     where
-        S: Scatterer,
-        T: Hittable<S>,
+        T: Hittable,
     {
         println!("P3\n{0} {1} \n255\n", self.image_width, self.image_height);
         for j in 0..self.image_height {
@@ -188,19 +206,25 @@ impl Interval {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-struct HitRecord<S> {
+struct HitRecord {
     p: Point,
     normal: Vector,
     t: f64,
     front_face: bool,
-    mat: S,
 }
 
-impl<S> HitRecord<S>
-where
-    S: Scatterer,
-{
+impl Default for HitRecord {
+    fn default() -> HitRecord {
+        HitRecord {
+            p: Vector::default(),
+            normal: Vector::default(),
+            t: 0.0,
+            front_face: false,
+        }
+    }
+}
+
+impl HitRecord {
     fn set_face_normal(&mut self, r: &Ray, outward_normal: Vector) {
         self.front_face = r.direction.dot(outward_normal) < 0.0;
         if self.front_face {
@@ -211,26 +235,21 @@ where
     }
 }
 
-struct HittableList<S>
-where
-    S: Scatterer,
-{
-    objects: Vec<Box<dyn Hittable<S>>>,
+struct HittableList {
+    objects: Vec<Box<dyn Hittable>>,
 }
 
-impl<S> Hittable<S> for HittableList<S>
-where
-    S: Scatterer + std::default::Default,
-{
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>) {
+impl Hittable for HittableList {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord, Option<&Material>) {
         let mut hit_anything = false;
         let mut closest_so_far = ray_t.max;
         let mut record = HitRecord::default();
-        let mut temp_rec = HitRecord::default();
+        let mut temp_rec: HitRecord;
+        let mut mat: Option<&Material> = None;
 
         for obj in &self.objects {
             let h: bool;
-            (h, temp_rec) = obj.hit(
+            (h, temp_rec, mat) = obj.hit(
                 r,
                 Interval {
                     min: ray_t.min,
@@ -243,15 +262,13 @@ where
                 record = temp_rec;
             }
         }
-        (hit_anything, record)
+
+        (hit_anything, record, mat)
     }
 }
 
-impl<S> HittableList<S>
-where
-    S: Scatterer,
-{
-    fn add(mut self, item: Box<dyn Hittable<S>>) {
+impl HittableList {
+    fn add(mut self, item: Box<dyn Hittable>) {
         self.objects.push(item);
     }
 
@@ -260,32 +277,42 @@ where
     }
 }
 
-trait Hittable<S> {
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>);
+trait Hittable {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord, Option<&Material>);
 }
 
-struct Sphere<S> {
+enum Material {
+    Lambertian(Lambertian),
+    Metal(Metal),
+}
+
+impl Material {
+    fn scatter(&self, r: &Ray, rec: &HitRecord) -> (bool, Vector, Ray) {
+        match self {
+            Material::Lambertian(t) => t.scatter(r, rec),
+            Material::Metal(t) => t.scatter(r, rec),
+        }
+    }
+}
+
+struct Sphere {
     center: Point,
     radius: f64,
-    mat: S,
+    mat: Material,
 }
 
-impl<S> Hittable<S> for Sphere<S>
-where
-    S: Scatterer + std::default::Default + Copy,
-{
-    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord<S>) {
+impl Hittable for Sphere {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> (bool, HitRecord, Option<&Material>) {
         let oc = r.origin - self.center;
         let a = r.direction.length_squared();
         let half_b = oc.dot(r.direction);
         let c = oc.length_squared() - self.radius * self.radius;
 
         let mut record = HitRecord::default();
-        record.mat = self.mat;
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return (false, record);
+            return (false, record, Some(&self.mat));
         }
         let sqrtd = discriminant.sqrt();
 
@@ -293,7 +320,7 @@ where
         if !ray_t.surrounds(root) {
             root = (-half_b + sqrtd) / a;
             if !ray_t.surrounds(root) {
-                return (false, record);
+                return (false, record, Some(&self.mat));
             }
         }
 
@@ -302,7 +329,7 @@ where
         let outward_normal = (record.p - self.center) / self.radius;
         record.set_face_normal(r, outward_normal);
 
-        return (true, record);
+        return (true, record, Some(&self.mat));
     }
 }
 
@@ -411,6 +438,15 @@ impl Vector {
             z: self.x * rhs.y - self.y * rhs.x,
         }
     }
+
+    fn near_zero(self) -> bool {
+        const THRESHOLD: f64 = 1e-8;
+        self.x < THRESHOLD && self.y < THRESHOLD && self.z < THRESHOLD
+    }
+
+    fn reflect(self, n: Vector) -> Vector {
+        self - n * (self.dot(n) * 2.0)
+    }
 }
 
 type Point = Vector;
@@ -421,10 +457,9 @@ struct Ray {
     direction: Vector,
 }
 
-fn ray_color<T, S>(r: Ray, world: &T, depth: u32) -> Vector
+fn ray_color<T>(r: Ray, world: &T, depth: u32) -> Vector
 where
-    S: Scatterer,
-    T: Hittable<S>,
+    T: Hittable,
 {
     if depth == 0 {
         return Vector {
@@ -433,15 +468,15 @@ where
             z: 0.0,
         };
     }
-    let (h, rec) = world.hit(
+    let (h, rec, mat) = world.hit(
         &r,
         Interval {
             min: 0.001,
             max: std::f64::INFINITY,
         },
     );
-    if h {
-        let (s, attenuation, scattered) = rec.mat.scatter(&r, &rec);
+    if h && mat.is_some() {
+        let (s, attenuation, scattered) = mat.unwrap().scatter(&r, &rec);
         if s {
             return ray_color(scattered, world, depth - 1) * attenuation;
         } else {
@@ -515,13 +550,13 @@ fn main() {
             z: -1.0,
         },
         radius: 0.5,
-        mat: Lambertian {
+        mat: Material::Metal(Metal {
             albedo: Vector {
-                x: 0.7,
-                y: 0.3,
-                z: 0.3,
+                x: 0.8,
+                y: 0.8,
+                z: 0.8,
             },
-        },
+        }),
     }));
 
     // ground
@@ -532,13 +567,13 @@ fn main() {
             z: -1.0,
         },
         radius: 100.0,
-        mat: Lambertian {
+        mat: Material::Lambertian(Lambertian {
             albedo: Vector {
                 x: 0.8,
                 y: 0.8,
                 z: 0.0,
             },
-        },
+        }),
     }));
 
     let cam = new_camera(
