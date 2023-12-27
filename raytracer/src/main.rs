@@ -246,10 +246,11 @@ impl Hittable for HittableList {
         let mut record = HitRecord::default();
         let mut temp_rec: HitRecord;
         let mut mat: Option<&Material> = None;
+        let mut new_mat: Option<&Material> = None;
 
         for obj in &self.objects {
             let h: bool;
-            (h, temp_rec, mat) = obj.hit(
+            (h, temp_rec, new_mat) = obj.hit(
                 r,
                 Interval {
                     min: ray_t.min,
@@ -258,8 +259,9 @@ impl Hittable for HittableList {
             );
             if h {
                 hit_anything = true;
-                closest_so_far = record.t;
+                closest_so_far = temp_rec.t;
                 record = temp_rec;
+                mat = new_mat;
             }
         }
 
