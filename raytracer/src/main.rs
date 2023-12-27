@@ -673,9 +673,9 @@ fn main() {
     });
     let material_center = Material::Lambertian(Lambertian {
         albedo: Vector {
-            x: 0.8,
-            y: 0.8,
-            z: 0.0,
+            x: 0.1,
+            y: 0.2,
+            z: 0.5,
         },
     });
 
