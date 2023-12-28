@@ -299,56 +299,85 @@ impl Material {
 }
 
 struct Pyramid {
+    top: Point,
     v0: Point,
     v1: Point,
     v2: Point,
-    v3: Point,
-    v4: Point, // top
+    v3: Point, // top
     mat: Material,
+}
+
+fn init_pyramid(top: Point, v0: Point, side_length: f64, mat: Material) -> Pyramid {
+    let v1 = Point {
+        x: v0.x,
+        y: v0.y,
+        z: v0.z - side_length,
+    };
+
+    let v2 = Point {
+        x: v0.x + side_length,
+        y: v0.y,
+        z: v1.z,
+    };
+
+    let v3 = Point {
+        x: v0.x + side_length,
+        y: v0.y,
+        z: v0.z,
+    };
+
+    Pyramid {
+        top,
+        v0,
+        v1,
+        v2,
+        v3,
+        mat,
+    }
 }
 
 impl Pyramid {
     fn generate_faces(self) -> Vec<Triangle> {
         let mut v: Vec<Triangle> = Vec::new();
-        let bot_t1 = Triangle {
-            v0: self.v0,
-            v1: self.v1,
-            v2: self.v2,
-            mat: self.mat,
-        };
-        let bot_t2 = Triangle {
-            v0: self.v1,
-            v1: self.v2,
-            v2: self.v3,
-            mat: self.mat,
-        };
+        //let bot_t1 = Triangle {
+        //    v0: self.v0,
+        //    v1: self.v1,
+        //    v2: self.top,
+        //    mat: self.mat,
+        //};
+        //let bot_t2 = Triangle {
+        //    v0: self.v1,
+        //    v1: self.v2,
+        //    v2: self.top,
+        //    mat: self.mat,
+        //};
 
         let side_1 = Triangle {
             v0: self.v0,
             v1: self.v1,
-            v2: self.v4,
+            v2: self.top,
             mat: self.mat,
         };
         let side_2 = Triangle {
             v0: self.v1,
             v1: self.v2,
-            v2: self.v4,
+            v2: self.top,
             mat: self.mat,
         };
         let side_3 = Triangle {
             v0: self.v2,
             v1: self.v3,
-            v2: self.v4,
+            v2: self.top,
             mat: self.mat,
         };
         let side_4 = Triangle {
             v0: self.v3,
             v1: self.v0,
-            v2: self.v4,
+            v2: self.top,
             mat: self.mat,
         };
-        v.push(bot_t1);
-        v.push(bot_t2);
+        //v.push(bot_t1);
+        //v.push(bot_t2);
         v.push(side_1);
         v.push(side_2);
         v.push(side_3);
@@ -411,7 +440,7 @@ impl Hittable for Triangle {
         }
         record.t = t;
         record.p = p;
-        record.set_face_normal(r, n);
+        record.set_face_normal(r, n.unit_vector());
         (true, record, Some(&self.mat))
     }
 }
@@ -673,9 +702,9 @@ fn main() {
     });
     let material_center = Material::Lambertian(Lambertian {
         albedo: Vector {
-            x: 0.1,
-            y: 0.2,
-            z: 0.5,
+            x: 0.7,
+            y: 0.3,
+            z: 0.3,
         },
     });
 
@@ -694,35 +723,60 @@ fn main() {
         },
     });
 
-    let pyramid = Pyramid {
-        v0: Point {
-            x: -0.7,
-            y: 0.0,
-            z: -0.9,
+    let left_pyramid = init_pyramid(
+        Point {
+            x: -1.5,
+            y: 0.5,
+            z: -1.5,
         },
-        v1: Point {
-            x: 0.3,
-            y: 0.0,
-            z: -1.1,
+        Point {
+            x: -2.0,
+            y: -0.5,
+            z: -1.0,
         },
-        v2: Point {
-            x: 0.3,
-            y: 0.0,
-            z: -1.9,
-        },
-        v3: Point {
-            x: -0.7,
-            y: 0.0,
-            z: -2.1,
-        },
-        v4: Point {
+        1.0,
+        material_left,
+    );
+    for face in left_pyramid.generate_faces() {
+        eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
+        world.objects.push(Box::new(face))
+    }
+
+    let center_pyramid = init_pyramid(
+        Point {
             x: 0.0,
             y: 0.5,
             z: -1.5,
         },
-        mat: material_center,
-    };
-    for face in pyramid.generate_faces() {
+        Point {
+            x: -0.5,
+            y: -0.5,
+            z: -1.0,
+        },
+        1.0,
+        material_center,
+    );
+    for face in center_pyramid.generate_faces() {
+        eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
+        world.objects.push(Box::new(face))
+    }
+
+    let right_pyramid = init_pyramid(
+        Point {
+            x: 1.5,
+            y: 0.5,
+            z: -1.5,
+        },
+        Point {
+            x: 1.0,
+            y: -0.5,
+            z: -1.0,
+        },
+        1.0,
+        material_right,
+    );
+    for face in right_pyramid.generate_faces() {
+        eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
         world.objects.push(Box::new(face))
     }
 
@@ -737,24 +791,24 @@ fn main() {
         mat: material_ground,
     }));
 
-    world.objects.push(Box::new(Triangle {
-        v0: Point {
-            x: -0.5,
-            y: -0.5,
-            z: -1.0,
-        },
-        v1: Point {
-            x: 0.5,
-            y: -0.5,
-            z: -1.0,
-        },
-        v2: Point {
-            x: 0.0,
-            y: 0.5,
-            z: -1.5,
-        },
-        mat: material_center,
-    }));
+    //world.objects.push(Box::new(Triangle {
+    //    v0: Point {
+    //        x: -0.5,
+    //        y: -0.5,
+    //        z: -1.0,
+    //    },
+    //    v1: Point {
+    //        x: 0.5,
+    //        y: -0.5,
+    //        z: -1.0,
+    //    },
+    //    v2: Point {
+    //        x: 0.0,
+    //        y: 0.5,
+    //        z: -1.5,
+    //    },
+    //    mat: material_center,
+    //}));
 
     //world.objects.push(Box::new(Sphere {
     //    center: Point {
