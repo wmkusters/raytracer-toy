@@ -401,7 +401,6 @@ impl Hittable for Triangle {
         let v0v1 = self.v1 - self.v0;
         let v0v2 = self.v2 - self.v0;
         let n = v0v1.cross(v0v2);
-        let area2 = n.length();
 
         // find P
         // check parallel
@@ -409,12 +408,12 @@ impl Hittable for Triangle {
         if n_dot_ray.abs() < 0.00001 {
             return (false, record, None);
         }
-        let d = -n.dot(self.v0);
-        let t = -(n.dot(r.origin) + d) / n_dot_ray;
+        let d = n.dot(self.v0);
+        let t = (n.dot(r.origin) + d) / n_dot_ray;
         if t < 0.0 {
             return (false, record, None);
         }
-        let p = r.origin + r.direction * t;
+        let p = r.at(t);
         let mut c: Vector;
 
         // edge 0
@@ -422,21 +421,21 @@ impl Hittable for Triangle {
         let vp0 = p - self.v0;
         c = edge0.cross(vp0);
         if n.dot(c) < 0.0 {
-            return (false, record, None);
+            return (false, record, Some(&self.mat));
         }
 
         let edge1 = self.v2 - self.v1;
         let vp1 = p - self.v1;
         c = edge1.cross(vp1);
         if n.dot(c) < 0.0 {
-            return (false, record, None);
+            return (false, record, Some(&self.mat));
         }
 
         let edge2 = self.v0 - self.v2;
         let vp2 = p - self.v2;
         c = edge2.cross(vp2);
         if n.dot(c) < 0.0 {
-            return (false, record, None);
+            return (false, record, Some(&self.mat));
         }
         record.t = t;
         record.p = p;
