@@ -1,10 +1,16 @@
-# raytracing_challenge
-[Tutorial link](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
-The premise of the challenge is to complete the above tutorial and then be the first one
-to render a scene as below, but with pyramids instead of spheres:  
-  
+# Raytracer toy
+An implementation of the [Ray Tracing in One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html) tutorial, but implemented in Rust rather than C++. As an added goal, the following image from the tutorial:
+
 ![scene](https://raytracing.github.io/images/img-1.13-metal-shiny.png)
 
-To submit, replace the following PNG with your image by replacing `./img.png` in this repo:  
+Was replaced with some pyramids:
   
 ![replace me](./img.png)
+
+To generate a new image, run:
+```
+cargo run main.rs > test.ppm
+```
+
+from the 
+
