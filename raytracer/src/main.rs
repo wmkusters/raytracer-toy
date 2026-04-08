@@ -725,40 +725,40 @@ fn main() {
     let left_pyramid = init_pyramid(
         Point {
             x: -1.5,
-            y: 0.5,
+            y: -0.5,
             z: -1.5,
         },
         Point {
             x: -2.0,
-            y: -0.5,
+            y: 0.5,
             z: -1.0,
         },
         1.0,
-        material_left,
+        material_center,
     );
     for face in left_pyramid.generate_faces() {
         eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
         world.objects.push(Box::new(face))
     }
 
-    let center_pyramid = init_pyramid(
-        Point {
-            x: 0.0,
-            y: 0.5,
-            z: -1.5,
-        },
-        Point {
-            x: -0.5,
-            y: -0.5,
-            z: -1.0,
-        },
-        1.0,
-        material_center,
-    );
-    for face in center_pyramid.generate_faces() {
-        eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
-        world.objects.push(Box::new(face))
-    }
+    //let center_pyramid = init_pyramid(
+    //    Point {
+    //        x: 0.0,
+    //        y: 0.5,
+    //        z: -1.5,
+    //    },
+    //    Point {
+    //        x: -0.5,
+    //        y: -0.5,
+    //        z: -1.0,
+    //    },
+    //    1.0,
+    //    material_center,
+    //);
+    //for face in center_pyramid.generate_faces() {
+    //    eprintln!("v0: {0}, v1: {1}, v2: {2},", face.v0, face.v1, face.v2);
+    //    world.objects.push(Box::new(face))
+    //}
 
     let right_pyramid = init_pyramid(
         Point {
@@ -809,15 +809,15 @@ fn main() {
     //    mat: material_center,
     //}));
 
-    //world.objects.push(Box::new(Sphere {
-    //    center: Point {
-    //        x: 0.0,
-    //        y: 0.0,
-    //        z: -1.0,
-    //    },
-    //    radius: 0.5,
-    //    mat: material_center,
-    //}));
+    world.objects.push(Box::new(Sphere {
+        center: Point {
+            x: 0.0,
+            y: 0.0,
+            z: -1.0,
+        },
+        radius: 0.5,
+        mat: material_left,
+    }));
 
     //world.objects.push(Box::new(Sphere {
     //    center: Point {
@@ -841,7 +841,7 @@ fn main() {
 
     let cam = new_camera(
         16.0 / 9.0,
-        400,
+        1600,
         Vector {
             x: 0.0,
             y: 0.0,
