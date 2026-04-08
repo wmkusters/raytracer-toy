@@ -3,14 +3,13 @@ An implementation of the [Ray Tracing in One Weekend](https://raytracing.github.
 
 ![scene](https://raytracing.github.io/images/img-1.13-metal-shiny.png)
 
-Was replaced with some pyramids:
+Was replaced with some pyramids and converted to a .jpeg:
   
-![replace me](./img.png)
+![pyramids](https://gist.github.com/user-attachments/assets/0bad2ba6-8202-4bb0-9baf-da344553ad66)
 
 To generate a new image, run:
 ```
-cargo run main.rs > test.ppm
+cargo run src/main.rs > img.ppm
 ```
 
-from the 
 

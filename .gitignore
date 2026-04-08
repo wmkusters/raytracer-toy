@@ -3,3 +3,6 @@ target/
 
 # Well, this depends... See below!
 Cargo.lock
+
+.DS_Store
+*.ppm
