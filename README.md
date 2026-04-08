@@ -3,9 +3,9 @@ An implementation of the [Ray Tracing in One Weekend](https://raytracing.github.
 
 ![scene](https://raytracing.github.io/images/img-1.13-metal-shiny.png)
 
-Was replaced with some pyramids and converted to a .jpeg:
+Was replaced with some pyramids and converted to a .png:
   
-![pyramids](https://gist.github.com/user-attachments/assets/0bad2ba6-8202-4bb0-9baf-da344553ad66)
+![pyramids](./img.png)
 
 To generate a new image, run:
 ```
