@@ -1,3 +1,16 @@
+// A toy raytracer following the implementation of
+// https://raytracing.github.io/books/RayTracingInOneWeekend.html
+// Dumps a .ppm file to stdout using println!, with current line being
+// scanned to stderr. Intended use:
+//
+// cargo run src/main.rs > ./img.ppm
+//
+// Depends on the rand crate
+// See full project here:
+// https://github.com/wmkusters/raytracer-toy/tree/main
+//
+// Currently renders some pyramids, but lots of code is left in to render spheres.
+
 use rand::Rng;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -339,19 +352,6 @@ fn init_pyramid(top: Point, v0: Point, side_length: f64, mat: Material) -> Pyram
 impl Pyramid {
     fn generate_faces(self) -> Vec<Triangle> {
         let mut v: Vec<Triangle> = Vec::new();
-        //let bot_t1 = Triangle {
-        //    v0: self.v0,
-        //    v1: self.v1,
-        //    v2: self.top,
-        //    mat: self.mat,
-        //};
-        //let bot_t2 = Triangle {
-        //    v0: self.v1,
-        //    v1: self.v2,
-        //    v2: self.top,
-        //    mat: self.mat,
-        //};
-
         let side_1 = Triangle {
             v0: self.v0,
             v1: self.v1,
@@ -376,8 +376,6 @@ impl Pyramid {
             v2: self.top,
             mat: self.mat,
         };
-        //v.push(bot_t1);
-        //v.push(bot_t2);
         v.push(side_1);
         v.push(side_2);
         v.push(side_3);
@@ -789,55 +787,6 @@ fn main() {
         radius: 100.0,
         mat: material_ground,
     }));
-
-    //world.objects.push(Box::new(Triangle {
-    //    v0: Point {
-    //        x: -0.5,
-    //        y: -0.5,
-    //        z: -1.0,
-    //    },
-    //    v1: Point {
-    //        x: 0.5,
-    //        y: -0.5,
-    //        z: -1.0,
-    //    },
-    //    v2: Point {
-    //        x: 0.0,
-    //        y: 0.5,
-    //        z: -1.5,
-    //    },
-    //    mat: material_center,
-    //}));
-
-    //world.objects.push(Box::new(Sphere {
-    //    center: Point {
-    //        x: 0.0,
-    //        y: 0.0,
-    //        z: -1.0,
-    //    },
-    //    radius: 0.5,
-    //    mat: material_center,
-    //}));
-
-    //world.objects.push(Box::new(Sphere {
-    //    center: Point {
-    //        x: -1.0,
-    //        y: 0.0,
-    //        z: -1.0,
-    //    },
-    //    radius: 0.5,
-    //    mat: material_left,
-    //}));
-
-    //world.objects.push(Box::new(Sphere {
-    //    center: Point {
-    //        x: 1.0,
-    //        y: 0.0,
-    //        z: -1.0,
-    //    },
-    //    radius: 0.5,
-    //    mat: material_right,
-    //}));
 
     let cam = new_camera(
         16.0 / 9.0,
